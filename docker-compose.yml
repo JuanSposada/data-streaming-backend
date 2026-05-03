@@ -1,0 +1,26 @@
+services:
+  # Base de datoes en memoria para estados de pausa/reinicio
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # Sistema de mensajeria para los chunks
+  nats:
+    image: nats:2.10-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222" #Dashboard de monitoreo
+    command: ["-js"] # Habilita JetStream para persistencia
+    restart: always
+
+  # App en go que utilizara Docker Volumen para persistencia de datos
+  backend:
+    build: .
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - redis
+      - nats
+  

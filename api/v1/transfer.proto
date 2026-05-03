@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package transfer.v1;
+
+// La ruta donde se generara el codigo Go
+
+option go_package = "github.com/JuanSposada/data-streaming-backend/api/v1";
+
+service FileService {
+    // streaming bidirrecional: el cliente pide y recibe
+    //  y puede enviar señales de control como pausa
+    rpc StreamFile(FileRequest) returns (stream FileResponse);
+}
+
+message FileRequest{
+    string file_id = 1;
+    int64 start_chunk = 2; // para cuando reanudamos (offset)
+}
+
+message FileResponse {
+    bytes data = 1; // El chunk de datos en binaroi
+    int64 chunk_index = 2;  // Que numero de pedazos es
+    int64 total_chunks = 3; //Para que el front cvalcule el %
+    bool is_last = 4; // Flag para saber que terminamos
+}
