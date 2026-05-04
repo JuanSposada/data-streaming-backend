@@ -1,8 +1,11 @@
 package streaming
 
 import (
+	"context"
 	"io"
+	"log"
 	"os"
+	"time"
 
 	pb "github.com/JuanSposada/data-streaming-backend/api/v1"
 	"github.com/JuanSposada/data-streaming-backend/internal/cache"
@@ -24,17 +27,25 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 	}
 	defer file.Close()
 
-	// 2. Logica de Reanudacion: Saltamos al chink solicitado
+	// 2. Logica de Reanudacion: Saltamos al chunk solicitado
 	offset := req.StartChunk * ChunkSize
-	_, err = file.Seek(offset, 0)
-	if err != nil {
-		return err
-	}
+	file.Seek(offset, 0)
 
 	buffer := make([]byte, ChunkSize)
 	chunkIndex := req.StartChunk
 
 	for {
+		//Logica de control de Pausa
+		// consultamos Redis antes de enviar el siguiente pedazo
+		status, _ := s.Cache.GetStreamStatus(context.Background(), req.FileId)
+		if status == "PAUSED" {
+			log.Printf("Streaming pausado para el archivo: %s", req.FileId)
+			// Guardamos el porgreso y esperamos un momeento para no saturar CPU
+			s.Cache.SaveLastChunk(context.Background(), req.FileId, chunkIndex)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
 		n, err := file.Read(buffer)
 		if err == io.EOF {
 			break
@@ -58,5 +69,6 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 	}
 
 	// 4. Avisar que terminamos
+	log.Printf("Transferencia completa: %s", req.FileId)
 	return stream.Send(&pb.FileResponse{IsLast: true})
 }
