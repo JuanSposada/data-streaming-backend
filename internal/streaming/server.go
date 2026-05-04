@@ -5,12 +5,14 @@ import (
 	"os"
 
 	pb "github.com/JuanSposada/data-streaming-backend/api/v1"
+	"github.com/JuanSposada/data-streaming-backend/internal/cache"
 )
 
 const ChunkSize = 1024 * 1024 // 1MB por pedazo
 
 type FileServer struct {
 	pb.UnimplementedFileServiceServer
+	Cache *cache.Cache
 }
 
 func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_StreamFileServer) error {
