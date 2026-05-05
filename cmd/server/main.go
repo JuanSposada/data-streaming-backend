@@ -7,6 +7,7 @@ import (
 	pb "github.com/JuanSposada/data-streaming-backend/api/v1"
 	"github.com/JuanSposada/data-streaming-backend/internal/cache"
 	"github.com/JuanSposada/data-streaming-backend/internal/streaming"
+	"github.com/nats-io/nats.go"
 	"google.golang.org/grpc"
 )
 
@@ -16,8 +17,15 @@ func main() {
 	redisCache := cache.NewCache("redis:6379")
 	log.Println("Conectando a Redis...")
 
+	// 1.5 Conectar a NATS usando el nombre del servicio de Docker
+	nc, err := nats.Connect("nats://nats:4222")
+	if err != nil {
+		log.Fatalf("Error conectando a NATS: %v", err)
+	}
+	defer nc.Close()
+
 	// 2. Configurar el listener TCP para gRPC
-	lis, err := net.Listen("tcp", ":50051")
+	lis, err := net.Listen("tcp", "0.0.0.0:50051")
 	if err != nil {
 		log.Fatalf("Error al abrir el puerto 50051: %v", err)
 	}
@@ -28,6 +36,7 @@ func main() {
 	// Pasamos el cache al servidor de streaming
 	fileServer := &streaming.FileServer{
 		Cache: redisCache,
+		Nats:  nc,
 	}
 
 	pb.RegisterFileServiceServer(s, fileServer)

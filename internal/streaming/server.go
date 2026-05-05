@@ -2,6 +2,7 @@ package streaming
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	pb "github.com/JuanSposada/data-streaming-backend/api/v1"
 	"github.com/JuanSposada/data-streaming-backend/internal/cache"
+	"github.com/nats-io/nats.go"
 )
 
 const ChunkSize = 1024 * 1024 // 1MB por pedazo
@@ -16,9 +18,13 @@ const ChunkSize = 1024 * 1024 // 1MB por pedazo
 type FileServer struct {
 	pb.UnimplementedFileServiceServer
 	Cache *cache.Cache
+	Nats  *nats.Conn
 }
 
 func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_StreamFileServer) error {
+	// 0.5 agregamos el evento de Nats al inicion
+	s.Nats.Publish("file.status", []byte("Iniciado: "+req.FileId))
+
 	// 1. Abrir el archivo desde el volumen de Docker
 	filePath := "./uploads/" + req.FileId
 	file, err := os.Open(filePath)
@@ -62,13 +68,20 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 		}
 
 		if err := stream.Send(resp); err != nil {
+			//Evento de NATS
+			s.Nats.Publish("file.errors", []byte("DISCONNECT: Conexion perdida con cliente en "+req.FileId))
 			return err
 		}
 
+		//Notificar progreso
+		if chunkIndex%10 == 0 {
+			s.Nats.Publish("file.progress", []byte(fmt.Sprintf("Archivo %s en chunk %d", req.FileId, chunkIndex)))
+		}
 		chunkIndex++
 	}
 
 	// 4. Avisar que terminamos
+	s.Nats.Publish("file.status", []byte("COMPLETADO: "+req.FileId))
 	log.Printf("Transferencia completa: %s", req.FileId)
 	return stream.Send(&pb.FileResponse{IsLast: true})
 }
