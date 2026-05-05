@@ -1,1 +1,28 @@
 uploads/*
+descargado_*
+# Ignorar binarios compilados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Ignorar archivos de prueba y cobertura
+*.test
+*.out
+
+# Ignorar binarios generados por go build / go install
+/bin/
+/build/
+/dist/
+
+# Ignorar dependencias locales
+vendor/
+
+# Ignorar configuraciones del editor
+.vscode/
+.idea/
+
+# Ignorar archivos del sistema
+.DS_Store
+Thumbs.db

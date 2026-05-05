@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log"
+	"os"
 
 	pb "github.com/JuanSposada/data-streaming-backend/api/v1"
 	"google.golang.org/grpc"
@@ -20,16 +21,24 @@ func main() {
 
 	client := pb.NewFileServiceClient(conn)
 
+	//Nombre del archivo:
+	fileName := "v1.mp4"
 	// 2. Pedir el archivo
 	req := &pb.FileRequest{
-		FileId:     "testfile10G.dat", //Nomber del archiuvo en la carpeta
-		StartChunk: 0,                 // empezar desde 0
+		FileId:     fileName, //Nomber del archiuvo en la carpeta
+		StartChunk: 0,        // empezar desde 0
 	}
 
 	stream, err := client.StreamFile(context.Background(), req)
 	if err != nil {
 		log.Fatalf("Error al pedir el stream: %v", err)
 	}
+
+	outputFile, err := os.Create("descargado_" + fileName)
+	if err != nil {
+		log.Fatalf("No se pudo crear archivo local: %v", err)
+	}
+	defer outputFile.Close()
 
 	log.Println("Empezando a recibir chunks...")
 
@@ -43,6 +52,10 @@ func main() {
 			log.Fatalf("Error recibiendo: %v", err)
 		}
 
+		_, err = outputFile.Write(resp.Data)
+		if err != nil {
+			log.Fatalf("Error al escribir en disco: %v", err)
+		}
 		if resp.IsLast {
 			log.Println("Archivo recibido por completo!")
 			break
@@ -50,4 +63,5 @@ func main() {
 
 		log.Printf("Recibido Chunk #%d - Tamaño; %d bites", resp.ChunkIndex, len(resp.Data))
 	}
+	log.Printf("El archivo se guardo como: descargado_%s", fileName)
 }
