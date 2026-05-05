@@ -1,6 +1,6 @@
 services:
   #Servidor streaming en Go
-  backen:
+  backend:
     build: .
     container_name: streaming-server
     ports:
