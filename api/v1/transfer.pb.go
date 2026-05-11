@@ -21,6 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Download messages
 type FileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileId        string                 `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
@@ -141,6 +142,111 @@ func (x *FileResponse) GetIsLast() bool {
 	return false
 }
 
+// Upload Messages
+type UploadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileName      string                 `protobuf:"bytes,1,opt,name=file_name,json=fileName,proto3" json:"file_name,omitempty"`
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadRequest) Reset() {
+	*x = UploadRequest{}
+	mi := &file_api_v1_transfer_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadRequest) ProtoMessage() {}
+
+func (x *UploadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_transfer_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadRequest.ProtoReflect.Descriptor instead.
+func (*UploadRequest) Descriptor() ([]byte, []int) {
+	return file_api_v1_transfer_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *UploadRequest) GetFileName() string {
+	if x != nil {
+		return x.FileName
+	}
+	return ""
+}
+
+func (x *UploadRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type UploadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	Success       bool                   `protobuf:"varint,4,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadResponse) Reset() {
+	*x = UploadResponse{}
+	mi := &file_api_v1_transfer_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadResponse) ProtoMessage() {}
+
+func (x *UploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_v1_transfer_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadResponse.ProtoReflect.Descriptor instead.
+func (*UploadResponse) Descriptor() ([]byte, []int) {
+	return file_api_v1_transfer_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *UploadResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *UploadResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 var File_api_v1_transfer_proto protoreflect.FileDescriptor
 
 const file_api_v1_transfer_proto_rawDesc = "" +
@@ -155,10 +261,18 @@ const file_api_v1_transfer_proto_rawDesc = "" +
 	"\vchunk_index\x18\x02 \x01(\x03R\n" +
 	"chunkIndex\x12!\n" +
 	"\ftotal_chunks\x18\x03 \x01(\x03R\vtotalChunks\x12\x17\n" +
-	"\ais_last\x18\x04 \x01(\bR\x06isLast2R\n" +
+	"\ais_last\x18\x04 \x01(\bR\x06isLast\"@\n" +
+	"\rUploadRequest\x12\x1b\n" +
+	"\tfile_name\x18\x01 \x01(\tR\bfileName\x12\x12\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"D\n" +
+	"\x0eUploadResponse\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x18\n" +
+	"\asuccess\x18\x04 \x01(\bR\asuccess2\x9b\x01\n" +
 	"\vFileService\x12C\n" +
 	"\n" +
-	"StreamFile\x12\x18.transfer.v1.FileRequest\x1a\x19.transfer.v1.FileResponse0\x01B6Z4github.com/JuanSposada/data-streaming-backend/api/v1b\x06proto3"
+	"StreamFile\x12\x18.transfer.v1.FileRequest\x1a\x19.transfer.v1.FileResponse0\x01\x12G\n" +
+	"\n" +
+	"UploadFile\x12\x1a.transfer.v1.UploadRequest\x1a\x1b.transfer.v1.UploadResponse(\x01B6Z4github.com/JuanSposada/data-streaming-backend/api/v1b\x06proto3"
 
 var (
 	file_api_v1_transfer_proto_rawDescOnce sync.Once
@@ -172,16 +286,20 @@ func file_api_v1_transfer_proto_rawDescGZIP() []byte {
 	return file_api_v1_transfer_proto_rawDescData
 }
 
-var file_api_v1_transfer_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_api_v1_transfer_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_api_v1_transfer_proto_goTypes = []any{
-	(*FileRequest)(nil),  // 0: transfer.v1.FileRequest
-	(*FileResponse)(nil), // 1: transfer.v1.FileResponse
+	(*FileRequest)(nil),    // 0: transfer.v1.FileRequest
+	(*FileResponse)(nil),   // 1: transfer.v1.FileResponse
+	(*UploadRequest)(nil),  // 2: transfer.v1.UploadRequest
+	(*UploadResponse)(nil), // 3: transfer.v1.UploadResponse
 }
 var file_api_v1_transfer_proto_depIdxs = []int32{
 	0, // 0: transfer.v1.FileService.StreamFile:input_type -> transfer.v1.FileRequest
-	1, // 1: transfer.v1.FileService.StreamFile:output_type -> transfer.v1.FileResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	2, // 1: transfer.v1.FileService.UploadFile:input_type -> transfer.v1.UploadRequest
+	1, // 2: transfer.v1.FileService.StreamFile:output_type -> transfer.v1.FileResponse
+	3, // 3: transfer.v1.FileService.UploadFile:output_type -> transfer.v1.UploadResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -198,7 +316,7 @@ func file_api_v1_transfer_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_v1_transfer_proto_rawDesc), len(file_api_v1_transfer_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

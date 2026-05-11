@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	FileService_StreamFile_FullMethodName = "/transfer.v1.FileService/StreamFile"
+	FileService_UploadFile_FullMethodName = "/transfer.v1.FileService/UploadFile"
 )
 
 // FileServiceClient is the client API for FileService service.
@@ -30,6 +31,8 @@ type FileServiceClient interface {
 	//
 	//	y puede enviar señales de control como pausa
 	StreamFile(ctx context.Context, in *FileRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[FileResponse], error)
+	// Client-side stream
+	UploadFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadRequest, UploadResponse], error)
 }
 
 type fileServiceClient struct {
@@ -59,6 +62,19 @@ func (c *fileServiceClient) StreamFile(ctx context.Context, in *FileRequest, opt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type FileService_StreamFileClient = grpc.ServerStreamingClient[FileResponse]
 
+func (c *fileServiceClient) UploadFile(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[UploadRequest, UploadResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &FileService_ServiceDesc.Streams[1], FileService_UploadFile_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[UploadRequest, UploadResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FileService_UploadFileClient = grpc.ClientStreamingClient[UploadRequest, UploadResponse]
+
 // FileServiceServer is the server API for FileService service.
 // All implementations must embed UnimplementedFileServiceServer
 // for forward compatibility.
@@ -67,6 +83,8 @@ type FileServiceServer interface {
 	//
 	//	y puede enviar señales de control como pausa
 	StreamFile(*FileRequest, grpc.ServerStreamingServer[FileResponse]) error
+	// Client-side stream
+	UploadFile(grpc.ClientStreamingServer[UploadRequest, UploadResponse]) error
 	mustEmbedUnimplementedFileServiceServer()
 }
 
@@ -79,6 +97,9 @@ type UnimplementedFileServiceServer struct{}
 
 func (UnimplementedFileServiceServer) StreamFile(*FileRequest, grpc.ServerStreamingServer[FileResponse]) error {
 	return status.Error(codes.Unimplemented, "method StreamFile not implemented")
+}
+func (UnimplementedFileServiceServer) UploadFile(grpc.ClientStreamingServer[UploadRequest, UploadResponse]) error {
+	return status.Error(codes.Unimplemented, "method UploadFile not implemented")
 }
 func (UnimplementedFileServiceServer) mustEmbedUnimplementedFileServiceServer() {}
 func (UnimplementedFileServiceServer) testEmbeddedByValue()                     {}
@@ -112,6 +133,13 @@ func _FileService_StreamFile_Handler(srv interface{}, stream grpc.ServerStream) 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type FileService_StreamFileServer = grpc.ServerStreamingServer[FileResponse]
 
+func _FileService_UploadFile_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(FileServiceServer).UploadFile(&grpc.GenericServerStream[UploadRequest, UploadResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type FileService_UploadFileServer = grpc.ClientStreamingServer[UploadRequest, UploadResponse]
+
 // FileService_ServiceDesc is the grpc.ServiceDesc for FileService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -124,6 +152,11 @@ var FileService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "StreamFile",
 			Handler:       _FileService_StreamFile_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "UploadFile",
+			Handler:       _FileService_UploadFile_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "api/v1/transfer.proto",
