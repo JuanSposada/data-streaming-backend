@@ -40,10 +40,8 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 	if totalSize%ChunkSize != 0 {
 		totalChunks++
 	}
-		if err != nil {
-			return err
-		}
-		defer file.Close()
+
+	defer file.Close()
 
 	// 2. Logica de Reanudacion: Saltamos al chunk solicitado
 	offset := req.StartChunk * ChunkSize
@@ -105,6 +103,7 @@ func (s *FileServer) UploadFile(stream pb.FileService_UploadFileServer) error {
 	var totalReceived int64
 
 	for {
+
 		// 1. recibimos el siguiente mensaje del flujo de stream
 		req, err := stream.Recv()
 
@@ -113,7 +112,7 @@ func (s *FileServer) UploadFile(stream pb.FileService_UploadFileServer) error {
 			log.Printf("Subida finalizata. Total: %d bytes", totalReceived)
 
 			//Notificamos a NATS el exito
-			s.Nats.Publish("file.status", []byte("COMPLETADO: el archivo "+fileName+"se subio correctamente"))
+			s.Nats.Publish("file.status", []byte("COMPLETADO: el archivo "+fileName+" se subio correctamente"))
 
 			return stream.SendAndClose(&pb.UploadResponse{
 				Message: "!Archivo recibido y guardado con exito!",
@@ -138,6 +137,14 @@ func (s *FileServer) UploadFile(stream pb.FileService_UploadFileServer) error {
 				return err
 			}
 			defer file.Close()
+		}
+
+		for {
+			status, _ := s.Cache.GetStreamStatus(context.Background(), fileName)
+			if status != "PAUSED" {
+				break // si no esta pausado sale del bucle y pudo los datos
+			}
+			time.Sleep(1 * time.Second)
 		}
 
 		// 3. Escrivimos los bytes recibidos en el archivo
