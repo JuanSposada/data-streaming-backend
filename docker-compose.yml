@@ -1,30 +1,38 @@
 services:
-  #Servidor streaming en Go
   backend:
     build: .
     container_name: streaming-server
     ports:
       - "50051:50051"
     volumes:
-      - ./uploads:/root/uploads # Donde estarn los archivos dfisponible para descargar en streaming
+      - ./uploads:/root/uploads
     depends_on:
       - redis
       - nats
     environment:
       - REDIS_ADDR=redis:6379
       - NATS_ADDR=nats:4222
-  
-  # Cache para Pausar/Reanudar
+
   redis:
     image: redis:7-alpine
     container_name: streaming-redis
     ports:
       - "6379:6379"
-    
-  # Sistema de mensajeria
+
   nats:
     image: nats:2.10-alpine
     container_name: streaming-nats
     ports:
       - "4222:4222"
-    command: ["-js"] #Activar JetStream
+    command: ["-js"]
+
+  api:
+    build: ./python-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend   # 👈 FIX
+      - redis
+    environment:
+      - GRPC_HOST=backend:50051   # 👈 FIX
+      - REDIS_HOST=redis
