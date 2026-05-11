@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>Streaming Download</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111827;
+      color: white;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: #1f2937;
+      padding: 30px;
+      border-radius: 12px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .download {
+      background: #2563eb;
+    }
+
+    .download:hover {
+      background: #1d4ed8;
+    }
+
+    .pause {
+      background: #f59e0b;
+    }
+
+    .pause:hover {
+      background: #d97706;
+    }
+
+    .resume {
+      background: #22c55e;
+    }
+
+    .resume:hover {
+      background: #16a34a;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 14px;
+    }
+
+    .success {
+      color: #22c55e;
+    }
+
+    .error {
+      color: #ef4444;
+    }
+
+    .paused {
+      color: #facc15;
+    }
+
+    .progress-container {
+      margin-top: 20px;
+      width: 100%;
+      height: 25px;
+      background: #374151;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #2563eb;
+      transition: width 0.2s;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>Streaming Downloader</h1>
+
+    <input
+      type="text"
+      id="fileId"
+      value="9meses.mp4"
+      placeholder="Nombre del archivo"
+    />
+
+    <div class="buttons">
+
+      <button
+        class="download"
+        onclick="downloadFile()">
+        Descargar
+      </button>
+
+      <button
+        class="pause"
+        onclick="pauseDownload()">
+        Pausar
+      </button>
+
+      <button
+        class="resume"
+        onclick="resumeDownload()">
+        Reanudar
+      </button>
+
+    </div>
+
+    <div class="progress-container">
+      <div
+        class="progress-bar"
+        id="progressBar">
+      </div>
+    </div>
+
+    <p id="status"></p>
+
+  </div>
+
+ <script>
+
+let controller = null;
+
+let downloadedChunks = 0;
+
+let totalChunks = 1;
+
+let currentBlobParts = [];
+
+
+// 🔥 obtener metadata
+async function getFileInfo(fileId) {
+
+  const response = await fetch(
+    `http://localhost:8080/api/v1/files/${fileId}/info`
+  );
+
+  return await response.json();
+}
+
+
+async function downloadFile() {
+
+  const fileId =
+    document.getElementById("fileId").value;
+
+  const status =
+    document.getElementById("status");
+
+  try {
+
+    status.innerHTML =
+      "⏳ Descargando...";
+
+    // 🔥 metadata
+    const info =
+      await getFileInfo(fileId);
+
+    totalChunks =
+      info.total_chunks || 1;
+
+    controller =
+      new AbortController();
+
+    const response =
+      await fetch(
+        `http://localhost:8080/api/v1/files/${fileId}`,
+        {
+          signal: controller.signal
+        }
+      );
+
+    if (!response.ok) {
+      throw new Error("Error descargando");
+    }
+
+    const reader =
+      response.body.getReader();
+
+    while (true) {
+
+      const { done, value } =
+        await reader.read();
+
+      if (done) break;
+
+      currentBlobParts.push(value);
+
+      downloadedChunks++;
+
+      // 🔥 progreso REAL
+      const percent =
+        (downloadedChunks / totalChunks) * 100;
+
+      document.getElementById(
+        "progressBar"
+      ).style.width =
+        percent + "%";
+
+      status.innerHTML =
+        `📦 ${percent.toFixed(2)}%`;
+
+    }
+
+    const blob =
+      new Blob(currentBlobParts);
+
+    const url =
+      window.URL.createObjectURL(blob);
+
+    const a =
+      document.createElement("a");
+
+    a.href = url;
+    a.download = fileId;
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    a.remove();
+
+    window.URL.revokeObjectURL(url);
+
+    status.innerHTML =
+      "✅ Descarga completada";
+
+  } catch (err) {
+
+    if (err.name === "AbortError") {
+
+      status.innerHTML =
+        "⏸️ Descarga pausada";
+
+      return;
+    }
+
+    console.error(err);
+
+    status.innerHTML =
+      "❌ Error descargando";
+  }
+}
+
+
+async function pauseDownload() {
+
+  const fileId =
+    document.getElementById("fileId").value;
+
+  await fetch(
+    `http://localhost:8080/api/v1/files/${fileId}/pause`,
+    {
+      method: "POST"
+    }
+  );
+
+  if (controller) {
+    controller.abort();
+  }
+}
+
+
+async function resumeDownload() {
+
+  const fileId =
+    document.getElementById("fileId").value;
+
+  await fetch(
+    `http://localhost:8080/api/v1/files/${fileId}/resume`,
+    {
+      method: "POST"
+    }
+  );
+
+  status.innerHTML =
+    "▶️ Reanudando...";
+
+  downloadFile();
+}
+
+</script>
+
+</body>
+</html>

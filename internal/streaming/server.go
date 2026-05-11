@@ -28,10 +28,22 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 	// 1. Abrir el archivo desde el volumen de Docker
 	filePath := "./uploads/" + req.FileId
 	file, err := os.Open(filePath)
+	fileInfo, err := file.Stat()
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+
+	totalSize := fileInfo.Size()
+
+	totalChunks := totalSize / ChunkSize
+
+	if totalSize%ChunkSize != 0 {
+		totalChunks++
+	}
+		if err != nil {
+			return err
+		}
+		defer file.Close()
 
 	// 2. Logica de Reanudacion: Saltamos al chunk solicitado
 	offset := req.StartChunk * ChunkSize
@@ -62,9 +74,10 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 
 		// 3. Enviar el chunk por el stream gRPC
 		resp := &pb.FileResponse{
-			Data:       buffer[:n],
-			ChunkIndex: chunkIndex,
-			IsLast:     false,
+			Data:        buffer[:n],
+			ChunkIndex:  chunkIndex,
+			TotalChunks: totalChunks,
+			IsLast:      false,
 		}
 
 		if err := stream.Send(resp); err != nil {
