@@ -1,4 +1,4 @@
-import redis
+import redis.asyncio as redis
 import os
 
 REDIS_HOST = os.getenv(
@@ -13,17 +13,17 @@ r = redis.Redis(
 )
 
 
-def pause_file(file_id: str):
+async def pause_file(file_id: str):
 
-    r.set(
+    await r.set(
         f"status:{file_id}",
         "PAUSED"
     )
 
 
-def resume_file(file_id: str):
+async def resume_file(file_id: str):
 
-    r.set(
+    await r.set(
         f"status:{file_id}",
         "RUNNING"
     )

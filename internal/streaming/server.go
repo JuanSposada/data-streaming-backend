@@ -13,7 +13,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-const ChunkSize = 1024 * 1024 // 1MB por pedazo
+const ChunkSize int64 = 1024 * 1024 // 1MB por pedazo
 
 type FileServer struct {
 	pb.UnimplementedFileServiceServer
@@ -44,8 +44,13 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 	defer file.Close()
 
 	// 2. Logica de Reanudacion: Saltamos al chunk solicitado
-	offset := req.StartChunk * ChunkSize
-	file.Seek(offset, 0)
+	offset := int64(req.StartChunk) * ChunkSize
+	log.Printf("reanindando desde byte: %d (Chunk: %d)", offset, req.StartChunk)
+
+	_, err = file.Seek(offset, 0)
+	if err != nil {
+		return err
+	}
 
 	buffer := make([]byte, ChunkSize)
 	chunkIndex := req.StartChunk

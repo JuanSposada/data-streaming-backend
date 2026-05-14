@@ -166,6 +166,7 @@ let totalChunks = 1;
 
 let currentBlobParts = [];
 
+let isDownloading = false;
 
 // 🔥 obtener metadata
 async function getFileInfo(fileId) {
@@ -186,24 +187,27 @@ async function downloadFile() {
   const status =
     document.getElementById("status");
 
+  if (isDownloading) return;
+
+  isDownloading = true;
+
   try {
 
     status.innerHTML =
       "⏳ Descargando...";
-
-    // 🔥 metadata
-    const info =
-      await getFileInfo(fileId);
-
-    totalChunks =
+    
+    if (downloadedChunks === 0){
+       const info = await getFileInfo(fileId);
+       totalChunks =
       info.total_chunks || 1;
-
+    }
+     
     controller =
       new AbortController();
 
     const response =
       await fetch(
-        `http://localhost:8080/api/v1/files/${fileId}`,
+        `http://localhost:8080/api/v1/files/${fileId}?start_chunk=${downloadedChunks}`,
         {
           signal: controller.signal
         }
@@ -241,6 +245,8 @@ async function downloadFile() {
 
     }
 
+    // solo si se termina el 100% se genera el archivo
+    if (downloadedChunks >= totalChunks){
     const blob =
       new Blob(currentBlobParts);
 
@@ -264,6 +270,11 @@ async function downloadFile() {
     status.innerHTML =
       "✅ Descarga completada";
 
+      //limpiamos para futura descarga
+      downloadedChunks = 0;
+      currentBlobParts = [];
+    }
+
   } catch (err) {
 
     if (err.name === "AbortError") {
@@ -271,13 +282,16 @@ async function downloadFile() {
       status.innerHTML =
         "⏸️ Descarga pausada";
 
-      return;
-    }
-
-    console.error(err);
+     
+    }else{
+      console.error(err);
 
     status.innerHTML =
       "❌ Error descargando";
+    }
+    
+  } finally {
+    isDownloading = false;
   }
 }
 
@@ -293,10 +307,6 @@ async function pauseDownload() {
       method: "POST"
     }
   );
-
-  if (controller) {
-    controller.abort();
-  }
 }
 
 
