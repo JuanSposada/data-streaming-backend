@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-  <title>Streaming Download</title>
+  <title>STAS - Transferencia de Archivos</title>
 
   <style>
     body {
@@ -20,24 +19,50 @@
       background: #1f2937;
       padding: 30px;
       border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 
-    h1 {
+    .section {
+      border-bottom: 1px solid #374151;
+      padding-bottom: 25px;
+      margin-bottom: 25px;
+    }
+
+    .section:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+
+    h1, h2 {
       margin-bottom: 20px;
+      color: #f3f4f6;
     }
 
-    input {
+    h2 {
+      font-size: 1.25rem;
+    }
+
+    input[type="text"], input[type="file"] {
       width: 100%;
       padding: 12px;
       border: none;
       border-radius: 8px;
       margin-bottom: 20px;
       font-size: 16px;
+      background: #374151;
+      color: white;
+      box-sizing: border-box;
+    }
+
+    input[type="file"] {
+      cursor: pointer;
     }
 
     .buttons {
       display: flex;
       gap: 10px;
+      margin-bottom: 15px;
     }
 
     button {
@@ -48,53 +73,29 @@
       color: white;
       font-size: 16px;
       cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
     }
 
-    .download {
-      background: #2563eb;
-    }
+    .btn-primary { background: #2563eb; }
+    .btn-primary:hover { background: #1d4ed8; }
 
-    .download:hover {
-      background: #1d4ed8;
-    }
+    .btn-warning { background: #f59e0b; }
+    .btn-warning:hover { background: #d97706; }
 
-    .pause {
-      background: #f59e0b;
-    }
+    .btn-success { background: #22c55e; }
+    .btn-success:hover { background: #16a34a; }
 
-    .pause:hover {
-      background: #d97706;
-    }
-
-    .resume {
-      background: #22c55e;
-    }
-
-    .resume:hover {
-      background: #16a34a;
-    }
-
-    #status {
-      margin-top: 20px;
+    .status-text {
+      margin-top: 10px;
       font-size: 14px;
-    }
-
-    .success {
-      color: #22c55e;
-    }
-
-    .error {
-      color: #ef4444;
-    }
-
-    .paused {
-      color: #facc15;
+      min-height: 20px;
     }
 
     .progress-container {
-      margin-top: 20px;
+      margin-top: 15px;
       width: 100%;
-      height: 25px;
+      height: 20px;
       background: #374151;
       border-radius: 8px;
       overflow: hidden;
@@ -103,231 +104,238 @@
     .progress-bar {
       width: 0%;
       height: 100%;
-      background: #2563eb;
-      transition: width 0.2s;
+      transition: width 0.1s ease-in-out;
     }
-
+    
+    #progressBar { background: #2563eb; }
+    #uploadBar { background: #22c55e; }
   </style>
 </head>
 
 <body>
 
   <div class="container">
-
-    <h1>Streaming Downloader</h1>
-
-    <input
-      type="text"
-      id="fileId"
-      value="9meses.mp4"
-      placeholder="Nombre del archivo"
-    />
-
-    <div class="buttons">
-
-      <button
-        class="download"
-        onclick="downloadFile()">
-        Descargar
-      </button>
-
-      <button
-        class="pause"
-        onclick="pauseDownload()">
-        Pausar
-      </button>
-
-      <button
-        class="resume"
-        onclick="resumeDownload()">
-        Reanudar
-      </button>
-
-    </div>
-
-    <div class="progress-container">
-      <div
-        class="progress-bar"
-        id="progressBar">
+    
+    <div class="section">
+      <h2>⬇️ Streaming Downloader</h2>
+      <input type="text" id="fileId" value="9meses.mp4" placeholder="Nombre del archivo a descargar" />
+      
+      <div class="buttons">
+        <button class="btn-primary" onclick="downloadFile()">Descargar</button>
+        <button class="btn-warning" onclick="pauseDownload()">Pausar</button>
+        <button class="btn-success" onclick="resumeDownload()">Reanudar</button>
       </div>
+
+      <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <p id="status" class="status-text"></p>
     </div>
 
-    <p id="status"></p>
+    <div class="section">
+      <h2>⬆️ Streaming Uploader (STAS)</h2>
+      <input type="file" id="file_input" />
+      
+      <div class="buttons">
+        <button class="btn-primary" onclick="uploadLargeFile()">Subir</button>
+        <button class="btn-warning" onclick="pauseUpload()">Pausar</button>
+        <button class="btn-success" onclick="resumeUpload()">Reanudar</button>
+      </div>
+
+      <div class="progress-container">
+        <div class="progress-bar" id="uploadBar"></div>
+      </div>
+      <p id="upload-status" class="status-text">Esperando archivo...</p>
+    </div>
 
   </div>
 
- <script>
-
+<script>
+// --- CONTROL DE GLOBAL DESCARGA ---
 let controller = null;
-
 let downloadedChunks = 0;
-
 let totalChunks = 1;
-
 let currentBlobParts = [];
-
 let isDownloading = false;
 
-// 🔥 obtener metadata
+// --- CONTROL DE GLOBAL SUBIDA ---
+let currentUploadIndex = 0;
+let isUploading = false;
+let uploadPaused = false;
+
+// --- LÓGICA DE DESCARGA ---
 async function getFileInfo(fileId) {
-
-  const response = await fetch(
-    `http://localhost:8080/api/v1/files/${fileId}/info`
-  );
-
+  const response = await fetch(`http://localhost:8080/api/v1/files/${fileId}/info`);
   return await response.json();
 }
 
-
 async function downloadFile() {
-
-  const fileId =
-    document.getElementById("fileId").value;
-
-  const status =
-    document.getElementById("status");
+  const fileId = document.getElementById("fileId").value;
+  const status = document.getElementById("status");
 
   if (isDownloading) return;
-
   isDownloading = true;
 
   try {
-
-    status.innerHTML =
-      "⏳ Descargando...";
+    status.innerHTML = "⏳ Descargando...";
     
     if (downloadedChunks === 0){
        const info = await getFileInfo(fileId);
-       totalChunks =
-      info.total_chunks || 1;
+       totalChunks = info.total_chunks || 1;
     }
      
-    controller =
-      new AbortController();
+    controller = new AbortController();
 
-    const response =
-      await fetch(
-        `http://localhost:8080/api/v1/files/${fileId}?start_chunk=${downloadedChunks}`,
-        {
-          signal: controller.signal
-        }
-      );
+    const response = await fetch(
+      `http://localhost:8080/api/v1/files/${fileId}?start_chunk=${downloadedChunks}`,
+      { signal: controller.signal }
+    );
 
-    if (!response.ok) {
-      throw new Error("Error descargando");
-    }
+    if (!response.ok) throw new Error("Error descargando");
 
-    const reader =
-      response.body.getReader();
+    const reader = response.body.getReader();
 
     while (true) {
-
-      const { done, value } =
-        await reader.read();
-
+      const { done, value } = await reader.read();
       if (done) break;
 
       currentBlobParts.push(value);
-
       downloadedChunks++;
 
-      // 🔥 progreso REAL
-      const percent =
-        (downloadedChunks / totalChunks) * 100;
-
-      document.getElementById(
-        "progressBar"
-      ).style.width =
-        percent + "%";
-
-      status.innerHTML =
-        `📦 ${percent.toFixed(2)}%`;
-
+      const percent = (downloadedChunks / totalChunks) * 100;
+      document.getElementById("progressBar").style.width = percent + "%";
+      status.innerHTML = `📦 Descargando: ${percent.toFixed(2)}%`;
     }
 
-    // solo si se termina el 100% se genera el archivo
     if (downloadedChunks >= totalChunks){
-    const blob =
-      new Blob(currentBlobParts);
+      const blob = new Blob(currentBlobParts);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileId;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
 
-    const url =
-      window.URL.createObjectURL(blob);
-
-    const a =
-      document.createElement("a");
-
-    a.href = url;
-    a.download = fileId;
-
-    document.body.appendChild(a);
-
-    a.click();
-
-    a.remove();
-
-    window.URL.revokeObjectURL(url);
-
-    status.innerHTML =
-      "✅ Descarga completada";
-
-      //limpiamos para futura descarga
+      status.innerHTML = "✅ Descarga completada";
       downloadedChunks = 0;
       currentBlobParts = [];
     }
 
   } catch (err) {
-
     if (err.name === "AbortError") {
-
-      status.innerHTML =
-        "⏸️ Descarga pausada";
-
-     
-    }else{
+      status.innerHTML = "⏸️ Descarga pausada";
+    } else {
       console.error(err);
-
-    status.innerHTML =
-      "❌ Error descargando";
+      status.innerHTML = "❌ Error descargando";
     }
-    
   } finally {
     isDownloading = false;
   }
 }
 
-
 async function pauseDownload() {
-
-  const fileId =
-    document.getElementById("fileId").value;
-
-  await fetch(
-    `http://localhost:8080/api/v1/files/${fileId}/pause`,
-    {
-      method: "POST"
-    }
-  );
+  const fileId = document.getElementById("fileId").value;
+  if (controller) controller.abort();
+  await fetch(`http://localhost:8080/api/v1/files/${fileId}/pause`, { method: "POST" });
 }
 
-
 async function resumeDownload() {
-
-  const fileId =
-    document.getElementById("fileId").value;
-
-  await fetch(
-    `http://localhost:8080/api/v1/files/${fileId}/resume`,
-    {
-      method: "POST"
-    }
-  );
-
-  status.innerHTML =
-    "▶️ Reanudando...";
-
+  const fileId = document.getElementById("fileId").value;
+  await fetch(`http://localhost:8080/api/v1/files/${fileId}/resume`, { method: "POST" });
+  document.getElementById("status").innerHTML = "▶️ Reanudando...";
   downloadFile();
 }
 
+// --- LÓGICA DE SUBIDA (UPLOAD) ---
+async function uploadLargeFile() {
+  const fileInput = document.getElementById("file_input");
+  const status = document.getElementById("upload-status");
+  const uploadBar = document.getElementById("uploadBar");
+
+  if (!fileInput.files[0]) {
+    status.innerHTML = "❌ Selecciona un archivo primero";
+    return;
+  }
+
+  if (isUploading) return;
+  isUploading = true;
+  uploadPaused = false;
+
+  const file = fileInput.files[0];
+  const chunkSize = 1024 * 1024; // Bloques de 1 MB
+  const totalUploadChunks = Math.ceil(file.size / chunkSize);
+
+  status.innerHTML = "⏳ Iniciando subida...";
+
+  // Continuamos desde donde se quedó (0 si es nueva, o el índice guardado si fue pausado)
+  for (let i = currentUploadIndex; i < totalUploadChunks; i++) {
+    if (uploadPaused) {
+      status.innerHTML = "⏸️ Subida pausada en el servidor";
+      isUploading = false;
+      return;
+    }
+
+    currentUploadIndex = i; // Guardamos el progreso por si pausa en el siguiente ciclo
+    const start = i * chunkSize;
+    const end = Math.min(file.size, start + chunkSize);
+    const chunk = file.slice(start, end);
+    
+    const formData = new FormData();
+    formData.append("file", chunk, file.name);
+    formData.append("chunk_index", i);
+    formData.append("total_chunks", totalUploadChunks);
+
+    try {
+      const response = await fetch("http://localhost:8080/api/v1/files/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) throw new Error("Error en el servidor");
+
+      const percent = ((i + 1) / totalUploadChunks) * 100;
+      uploadBar.style.width = percent + "%";
+      status.innerHTML = `📤 Subiendo: ${percent.toFixed(2)}% (Chunk ${i+1}/${totalUploadChunks})`;
+
+    } catch (err) {
+      console.error(err);
+      status.innerHTML = "❌ Error subiendo el archivo";
+      isUploading = false;
+      return;
+    }
+  }
+
+  status.innerHTML = "✅ ¡Subida completada con éxito!";
+  isUploading = false;
+  currentUploadIndex = 0; // Reseteamos contador
+}
+
+async function pauseUpload() {
+  const fileInput = document.getElementById("file_input");
+  if (!fileInput.files[0]) return;
+  
+  const fileId = fileInput.files[0].name;
+  uploadPaused = true;
+
+  // Notificamos a Redis a través de Python para cambiar el estado a PAUSED
+  await fetch(`http://localhost:8080/api/v1/files/${fileId}/pause`, { method: "POST" });
+}
+
+async function resumeUpload() {
+  const fileInput = document.getElementById("file_input");
+  if (!fileInput.files[0]) return;
+
+  const fileId = fileInput.files[0].name;
+  
+  // Despertamos el estado en Redis a RUNNING
+  await fetch(`http://localhost:8080/api/v1/files/${fileId}/resume`, { method: "POST" });
+  document.getElementById("upload-status").innerHTML = "▶️ Reanudando subida...";
+  
+  // Volvemos a disparar el loop de carga
+  uploadLargeFile();
+}
 </script>
 
 </body>

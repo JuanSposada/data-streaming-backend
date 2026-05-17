@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 
 import asyncio
@@ -96,3 +96,24 @@ async def file_info(file_id: str):
         }
     except StopIteration:
         return {"error": "Archivo no encontrado"}
+
+# Subida de archivos 
+@router.post("/api/v1/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...)
+):
+    # Recibimos un chunk del front y lo envia a Go via gRPC.
+    file_id = file.filename
+    content = await file.read()
+
+    # Enviamos el chunk al cliente gRPC que mantendra el stream
+    # En tu endpoint de python-api/app/routes/files.py:
+    success = await grpc_client.stream_chunk_to_go(file_id, content, chunk_index, total_chunks)
+
+    if success: 
+        return {"status": "chunk processed", "chunk": chunk_index}
+    return {"status": "error processing chunk", "chunk": chunk_index}
+
+    

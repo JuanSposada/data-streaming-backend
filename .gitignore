@@ -27,3 +27,6 @@ vendor/
 .DS_Store
 Thumbs.db
 test_tesis.txt
+
+python-api/generated/__pycache__/*
+python

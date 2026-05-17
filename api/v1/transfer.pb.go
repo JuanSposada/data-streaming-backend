@@ -147,6 +147,7 @@ type UploadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileName      string                 `protobuf:"bytes,1,opt,name=file_name,json=fileName,proto3" json:"file_name,omitempty"`
 	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	ChunkIndex    int64                  `protobuf:"varint,3,opt,name=chunk_index,json=chunkIndex,proto3" json:"chunk_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -193,6 +194,13 @@ func (x *UploadRequest) GetData() []byte {
 		return x.Data
 	}
 	return nil
+}
+
+func (x *UploadRequest) GetChunkIndex() int64 {
+	if x != nil {
+		return x.ChunkIndex
+	}
+	return 0
 }
 
 type UploadResponse struct {
@@ -261,10 +269,12 @@ const file_api_v1_transfer_proto_rawDesc = "" +
 	"\vchunk_index\x18\x02 \x01(\x03R\n" +
 	"chunkIndex\x12!\n" +
 	"\ftotal_chunks\x18\x03 \x01(\x03R\vtotalChunks\x12\x17\n" +
-	"\ais_last\x18\x04 \x01(\bR\x06isLast\"@\n" +
+	"\ais_last\x18\x04 \x01(\bR\x06isLast\"a\n" +
 	"\rUploadRequest\x12\x1b\n" +
 	"\tfile_name\x18\x01 \x01(\tR\bfileName\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"D\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\x12\x1f\n" +
+	"\vchunk_index\x18\x03 \x01(\x03R\n" +
+	"chunkIndex\"D\n" +
 	"\x0eUploadResponse\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x18\n" +
 	"\asuccess\x18\x04 \x01(\bR\asuccess2\x9b\x01\n" +
