@@ -13,7 +13,7 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-const ChunkSize = 1024 * 1024 // 1MB por pedazo
+const ChunkSize int64 = 1024 * 1024 // 1MB por pedazo
 
 type FileServer struct {
 	pb.UnimplementedFileServiceServer
@@ -44,8 +44,13 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 	defer file.Close()
 
 	// 2. Logica de Reanudacion: Saltamos al chunk solicitado
-	offset := req.StartChunk * ChunkSize
-	file.Seek(offset, 0)
+	offset := int64(req.StartChunk) * ChunkSize
+	log.Printf("reanindando desde byte: %d (Chunk: %d)", offset, req.StartChunk)
+
+	_, err = file.Seek(offset, 0)
+	if err != nil {
+		return err
+	}
 
 	buffer := make([]byte, ChunkSize)
 	chunkIndex := req.StartChunk
@@ -100,61 +105,56 @@ func (s *FileServer) StreamFile(req *pb.FileRequest, stream pb.FileService_Strea
 func (s *FileServer) UploadFile(stream pb.FileService_UploadFileServer) error {
 	var file *os.File
 	var fileName string
-	var totalReceived int64
+	// ⚠️ CONFIGURACIÓN CRÍTICA: Cambia este número al tamaño exacto de tus chunks en el Frontend.
+	// Si en tu JS usas bloques de 1MB, deja 1024 * 1024. Si usas 5MB, multiplica por 5.
+	const ChunkSize = 1024 * 1024
 
 	for {
-
-		// 1. recibimos el siguiente mensaje del flujo de stream
 		req, err := stream.Recv()
-
-		// si err es io.EOF significa que el cliente ya envio todo
 		if err == io.EOF {
-			log.Printf("Subida finalizata. Total: %d bytes", totalReceived)
-
-			//Notificamos a NATS el exito
-			s.Nats.Publish("file.status", []byte("COMPLETADO: el archivo "+fileName+" se subio correctamente"))
-
-			return stream.SendAndClose(&pb.UploadResponse{
-				Message: "!Archivo recibido y guardado con exito!",
-				Success: true,
-			})
+			if file != nil {
+				file.Close()
+			}
+			return stream.SendAndClose(&pb.UploadResponse{Message: "Chunks posicionados con éxito", Success: true})
 		}
 		if err != nil {
-			log.Printf("Error recibiendo el stream: %v", err)
+			if file != nil {
+				file.Close()
+			}
 			return err
 		}
 
-		// 2. Si es el primer chunk, preparamos el archivo en disco
-		if file == nil {
-			fileName = req.GetFileName()
-			path := "./uploads/" + fileName
+		fileName = req.GetFileName()
+		path := "./uploads/" + fileName
 
-			log.Printf("Iniciando subida de: %s", fileName)
-			s.Nats.Publish("file.status", []byte("SUBIENDO: "+fileName))
-
-			file, err = os.Create(path)
-			if err != nil {
-				return err
-			}
-			defer file.Close()
+		// Abrimos el archivo en modo lectura/escritura común. Si no existe, lo crea.
+		file, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Printf("Error abriendo archivo en Go: %v", err)
+			return err
 		}
 
+		// Control de Pausa por Redis
 		for {
 			status, _ := s.Cache.GetStreamStatus(context.Background(), fileName)
 			if status != "PAUSED" {
-				break // si no esta pausado sale del bucle y pudo los datos
+				break
 			}
 			time.Sleep(1 * time.Second)
 		}
 
-		// 3. Escrivimos los bytes recibidos en el archivo
-		chunkSize, err := file.Write(req.GetData())
+		// 🧮 LA MAGIA: Calculamos el offset exacto en el disco usando el chunk_index
+		offset := int64(req.GetChunkIndex()) * ChunkSize
+
+		// Escribimos los bytes en su lugar absoluto, ignorando el orden en que llegaron
+		_, err = file.WriteAt(req.GetData(), offset)
 		if err != nil {
+			log.Printf("Error escribiendo en offset %d: %v", offset, err)
+			file.Close()
 			return err
 		}
-		totalReceived += int64(chunkSize)
 
-		//Publicar progreso en NATS
-		s.Nats.Publish("file.progress", []byte(fmt.Sprintf("Subiendo %s: %d bytes recibidos", fileName, totalReceived)))
+		file.Close() // Cerramos el descriptor inmediatamente para liberar el archivo
+		s.Nats.Publish("file.progress", []byte(fmt.Sprintf("Chunk %d guardado en su lugar", req.GetChunkIndex())))
 	}
 }

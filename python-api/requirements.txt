@@ -3,3 +3,5 @@ uvicorn
 grpcio
 grpcio-tools
 redis
+asyncio
+python-multipart

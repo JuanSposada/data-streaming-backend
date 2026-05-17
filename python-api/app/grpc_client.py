@@ -1,5 +1,6 @@
 import grpc
 import os
+import asyncio
 
 from generated import transfer_pb2
 from generated import transfer_pb2_grpc
@@ -38,3 +39,34 @@ class GRPCClient:
         )
 
         return self.stub.StreamFile(request)
+    
+
+    async def stream_chunk_to_go(
+        self,
+        file_id: str,
+        content: bytes,
+        chunk_index: int,
+        total_chunks: int
+    ) -> bool:
+
+        try:
+            def request_generator():
+                yield transfer_pb2.UploadRequest(
+                    file_name=file_id,
+                    data=content,
+                    chunk_index=chunk_index # 🔥 ¡AQUÍ LO METES!
+                )
+            # 2. Como tu canal gRPC actual es sincrónico, envolvemos la llamada 
+            # en un hilo para mantener la API asíncrona y rápida
+            response = await asyncio.to_thread(
+                self.stub.UploadFile, 
+                request_generator()
+            )
+            if chunk_index + 1 == total_chunks:
+                print(f"DEBUG gRPC CLIENT: Último chunk ({chunk_index + 1}/{total_chunks}) enviado a Go.")
+            
+            return response.success
+
+        except Exception as e:
+            print(f"ERROR en GRPCClient (upload): {e}")
+            return False

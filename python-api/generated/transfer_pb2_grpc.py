@@ -3,7 +3,6 @@
 import grpc
 import warnings
 
-
 from . import transfer_pb2 as transfer__pb2
 
 GRPC_GENERATED_VERSION = '1.80.0'
@@ -40,6 +39,11 @@ class FileServiceStub(object):
                 request_serializer=transfer__pb2.FileRequest.SerializeToString,
                 response_deserializer=transfer__pb2.FileResponse.FromString,
                 _registered_method=True)
+        self.UploadFile = channel.stream_unary(
+                '/transfer.v1.FileService/UploadFile',
+                request_serializer=transfer__pb2.UploadRequest.SerializeToString,
+                response_deserializer=transfer__pb2.UploadResponse.FromString,
+                _registered_method=True)
 
 
 class FileServiceServicer(object):
@@ -53,6 +57,13 @@ class FileServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def UploadFile(self, request_iterator, context):
+        """Client-side stream
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_FileServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -60,6 +71,11 @@ def add_FileServiceServicer_to_server(servicer, server):
                     servicer.StreamFile,
                     request_deserializer=transfer__pb2.FileRequest.FromString,
                     response_serializer=transfer__pb2.FileResponse.SerializeToString,
+            ),
+            'UploadFile': grpc.stream_unary_rpc_method_handler(
+                    servicer.UploadFile,
+                    request_deserializer=transfer__pb2.UploadRequest.FromString,
+                    response_serializer=transfer__pb2.UploadResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -89,6 +105,33 @@ class FileService(object):
             '/transfer.v1.FileService/StreamFile',
             transfer__pb2.FileRequest.SerializeToString,
             transfer__pb2.FileResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UploadFile(request_iterator,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.stream_unary(
+            request_iterator,
+            target,
+            '/transfer.v1.FileService/UploadFile',
+            transfer__pb2.UploadRequest.SerializeToString,
+            transfer__pb2.UploadResponse.FromString,
             options,
             channel_credentials,
             insecure,
