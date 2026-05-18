@@ -9,13 +9,20 @@ app = FastAPI(
     version="1.0.0"
 )
 
+origins = [
+    "http://localhost:5173",  # Tu puerto de Vue
+    "http://127.0.0.1:5173",
+    "*",                      # Permitir todos temporalmente para pruebas de tesis
+]
+
 #  CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition", "Content-Length"],
 )
 
 #  Registrar rutas
