@@ -1,5 +1,6 @@
-from fastapi import APIRouter, File, UploadFile, Form
+from fastapi import APIRouter, File, UploadFile, Form,HTTPException
 from fastapi.responses import StreamingResponse
+import os
 
 import asyncio
 
@@ -11,8 +12,34 @@ from app.redis_client import (
 
 router = APIRouter()
 
+UPLOAD_DIR = "/uploads"
+
 grpc_client = GRPCClient()
 
+@router.get("/api/v1/files")
+async def list_available_files():
+    try:
+        # Verificar si el directorio existe; si no, regresamos lista vacía
+        if not os.path.exists(UPLOAD_DIR):
+            return []
+            
+        # Listamos todo el contenido del directorio
+        all_items = os.listdir(UPLOAD_DIR)
+        
+        # Filtrar para asegurarnos de listar SOLO archivos (ignorando carpetas temporales si las hay)
+        files = [
+            item for item in all_items 
+            if os.path.isfile(os.path.join(UPLOAD_DIR, item))
+        ]
+        
+        # Retornamos el array de strings directamente para que tu Vue lo mapee sin problemas
+        return files
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error al leer el almacenamiento local: {str(e)}"
+        )
 
 #  streaming real
 async def stream_generator(file_id: str, start_chunk: int):

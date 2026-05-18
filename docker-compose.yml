@@ -30,6 +30,8 @@ services:
     build: ./python-api
     ports:
       - "8080:8080"
+    volumes:
+      - ./uploads:/uploads
     depends_on:
       - backend   # 👈 FIX
       - redis
